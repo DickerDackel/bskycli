@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [project.scripts]
-bskysched = "bskycli.bskysched:main"
+bskyqueue = "bskycli.bskyqueue:main"
 bskyposter = "bskycli.bskyposter:main"
 
 [project.urls]
