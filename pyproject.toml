@@ -1,6 +1,6 @@
 [project]
-name = "FIXME"
-description = "FIXME"
+name = "bskycli"
+description = "bskycli"
 version = "0.0.1"
 readme = "README.md"
 
@@ -17,17 +17,16 @@ classifiers = [
 ]
 
 dependencies = [
-    "pygame-ce",
-    "pgcooldown",
-    "ddframework @ git+https://github.com/dickerdackel/ddframework",
+    "atproto",
 ]
 
 [project.scripts]
-FIXME = "package.module:main"
+bskysched = "bskycli.bskysched:main"
+bskyposter = "bskycli.bskyposter:main"
 
 [project.urls]
-homepage = "https://github.com/dickerdackel/FIXME"
-bugtracker = "https://github.com/DickerDackel/FIXME/issues"
+homepage = "https://github.com/dickerdackel/bskycli"
+bugtracker = "https://github.com/DickerDackel/bskycli/issues"
 
 [build-system]
 requires = ["setuptools"]
