@@ -9,6 +9,7 @@ from shutil import copyfile, move
 
 import bskycli.config as C
 from bskycli.lock import lock
+from bskycli.post import post
 
 RX = re.compile(r'^\d{4}-\d{2}-\d{2}-\d{2}:\d{2}(:\d{2})?$')
 
@@ -22,6 +23,8 @@ def main():
 
     opts = cmdline.parse_args(sys.argv[1:])
 
+    post(opts)
+
     if re.fullmatch(RX, opts.at) is None:
         raise SystemExit(f'Time format of {opts.at} is invalid')
 
@@ -34,7 +37,6 @@ def main():
     if len(text) > 300:
         raise SystemExit(f'Bluesky only allows posts up to {C.BSKY_MESSAGE_SIZE} characters')
 
-
     # This whole shit is the usual email server problem.  The files must not
     # be handled while they are still added.
     #
@@ -46,8 +48,8 @@ def main():
     # 3. Move the created files from the inbox into the queue
     # 4. Release the lock.
 
-    inbox = Path(C.inbox_dir())
-    queue = Path(C.queue_dir())
+    inbox = C.inbox_dir()
+    queue = C.queue_dir()
 
     post_files = []
 
@@ -62,7 +64,7 @@ def main():
 
     with lock():
         for f in post_files:
-            move(f, queue)
+            f.rename(queue / f.name)
 
 
 if __name__ == "__main__":

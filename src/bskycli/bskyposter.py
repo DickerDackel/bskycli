@@ -1,9 +1,7 @@
 import time
 
-from glob import glob
 from heapq import heapify, heappop
 from pathlib import Path
-from shutil import move
 from time import strptime, mktime
 
 from atproto import Client
@@ -14,9 +12,9 @@ from bskycli.auth import get_credentials
 
 
 def create_post(timestamp):
-    active = Path(C.active_dir())
-    queue = Path(C.queue_dir())
-    done = Path(C.done_dir())
+    active = C.active_dir()
+    queue = C.queue_dir()
+    done = C.done_dir()
 
     text_file = f'{timestamp}.txt'
     images = [f.name for f in queue.glob(f'{timestamp}*') if f.name != text_file]
@@ -24,9 +22,9 @@ def create_post(timestamp):
     # Move post data to `active` to avoid race conditions if the service is
     # started twice
     with lock():
-        move(queue / text_file, active / text_file)
+        (queue / text_file).rename(active / text_file)
         for img in images:
-            move(queue / img, active / img)
+            (queue / img).rename(active / img)
 
     with open(active / text_file) as f:
         text = f.read().strip()
@@ -47,9 +45,9 @@ def create_post(timestamp):
 
     # Finally move posted text and images into `done`
     with lock():
-        move(active / text_file, done / text_file)
+        (active / text_file).rename(done / text_file)
         for img in images:
-            move(active / img, done / img)
+            (active / img).rename(done / img)
 
 
 def send_due_posts(posts):
@@ -58,8 +56,9 @@ def send_due_posts(posts):
 
         newest = Path(heappop(posts))
 
-        timestamp = newest.name.rstrip('.txt')
-        time_struct = strptime(timestamp, '%Y-%m-%d-%H:%M')
+        timestamp = newest.stem
+        fmt = '%Y-%m-%d-%H:%M' if len(timestamp) == 16 else '%Y-%m-%d-%H:%M:%S'
+        time_struct = strptime(timestamp, fmt)
         time_val = mktime(time_struct)
 
         if time_val < now:
@@ -71,9 +70,7 @@ def send_due_posts(posts):
 
 
 def main():
-    queue = Path(C.queue_dir())
-    active = Path(C.active_dir())
-    done = Path(C.done_dir())
+    queue = C.queue_dir()
 
     while True:
         posts = list(queue.glob('*.txt'))

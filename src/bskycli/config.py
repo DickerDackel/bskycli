@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import os
 import os.path
 
@@ -7,56 +9,56 @@ BSKY_MESSAGE_SIZE = 300
 
 
 def config_dir():
-    cfg_root = (os.environ['XDG_CONFIG_HOME'] if 'XDG_CONFIG_HOME' in os.environ
-               else os.path.join(os.environ['HOME'], '.config') if 'HOME' in os.environ
-               else None)
+    cfg_root = (Path(os.environ['XDG_CONFIG_HOME']) if 'XDG_CONFIG_HOME' in os.environ
+                else Path(os.environ['HOME']) / '.config' if 'HOME' in os.environ
+                else None)
 
     if cfg_root is None:
         raise RuntimeError('Neither HOME nor XDG_CONFIG_HOME defined, cannot find config directory')
 
-    return os.path.join(cfg_root, 'bskycli')
+    return cfg_root / 'bskycli'
 
 
 def data_dir():
-    data_root = (os.environ['XDG_DATA_HOME'] if 'XDG_DATA_HOME' in os.environ
-                 else os.path.join(os.environ['HOME'], '.local', 'share') if 'HOME' in os.environ
+    data_root = (Path(os.environ['XDG_DATA_HOME']) if 'XDG_DATA_HOME' in os.environ
+                 else Path(os.environ['HOME']) / '.local' / 'share' if 'HOME' in os.environ
                  else None)
 
     if data_root is None:
         raise RuntimeError('Neither HOME nor XDG_DATA_HOME defined, cannot find config directory')
 
-    return os.path.join(data_root, 'bskycli')
+    return data_root / 'bskycli'
 
 
 def lock_file():
-    return os.path.join(data_dir(), 'LOCK')
+    return data_dir() / 'LOCK'
 
 
 def inbox_dir():
-    return os.path.join(data_dir(), 'inbox')
+    return data_dir() / 'inbox'
 
 
 def queue_dir():
-    return os.path.join(data_dir(), 'queue')
+    return data_dir() / 'queue'
 
 
 def active_dir():
-    return os.path.join(data_dir(), 'active')
+    return data_dir() / 'active'
 
 
 def done_dir():
-    return os.path.join(data_dir(), 'done')
+    return data_dir() / 'done'
 
 
 def setup():
     for d in (config_dir(), data_dir(), inbox_dir(), queue_dir(), active_dir(), done_dir()):
-        if os.path.exists(d):
-            if os.path.isdir(d):
+        if d.exists():
+            if d.is_dir():
                 continue
 
             raise RuntimeError(f'{d} is not a directory')
         else:
-            os.mkdir(d)
+            d.mkdir()
 
 # Guarantee, that the infrastructure directories exist
 setup()
