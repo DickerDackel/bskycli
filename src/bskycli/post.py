@@ -13,6 +13,23 @@ RX = re.compile(r'^\d{4}-\d{2}-\d{2}-\d{2}:\d{2}(:\d{2})?$')
 
 
 def post(opts):
+    # This whole shit is the usual email server problem.  The files must not
+    # be handled while they are still added.
+    # That can be achieved 
+    #
+    # 1. Add them to the inbox
+    # 2. Aquire a lock to move them into the actual queue.  A move is an
+    #    atomic operation, but we're moving up to 5 files, so a task switch
+    #    could occur.  That's what the lock is for.  But doing it only here
+    #    makes sure, the blocking of the server is minimal.
+    # 3. Move the created files from the inbox into the queue
+    # 4. Release the lock.
+    inbox = C.inbox_dir()
+    queue = C.queue_dir()
+
+    zip_name = f'{opts.at}.zip'
+    z = ZipFile(inbox / zip_name, 'w')
+
     if re.fullmatch(RX, opts.at) is None:
         raise SystemExit(f'Time format of {opts.at} is invalid')
 
@@ -25,31 +42,14 @@ def post(opts):
     if len(text) > 300:
         raise SystemExit(f'Bluesky only allows posts up to {C.BSKY_MESSAGE_SIZE} characters')
 
-    # This whole shit is the usual email server problem.  The files must not
-    # be handled while they are still added.
-    #
-    # 1. Add them to the inbox
-    # 2. Aquire a lock to move them into the actual queue.  A move is an
-    #    atomic operation, but we're moving up to 5 files, so a task switch
-    #    could occur.  That's what the lock is for.  But doing it only here
-    #    makes sure, the blocking of the server is minimal.
-    # 3. Move the created files from the inbox into the queue
-    # 4. Release the lock.
+    z.writestr('contents', text)
 
-    inbox = C.inbox_dir()
-    queue = C.queue_dir()
+    for i, fname in enumerate(opts.images):
+        with open(fname, 'rb') as f:
+            image = f.read()
+            z.writestr(f'image-{i}{fname.suffix}', image)
 
-    post_files = []
-
-    post_files.append(inbox / f'{opts.at}.txt')
-    with open(post_files[-1], 'w') as f:
-        print(text, file=f)
-
-    for i, img in enumerate(opts.images):
-        post_files.append(inbox / f'{opts.at}-{i}{img.suffix}')
-
-        copyfile(img, post_files[-1])
+    z.close()
 
     with lock():
-        for f in post_files:
-            f.rename(queue / f.name)
+        (inbox / zip_name).rename(queue / zip_name)

@@ -3,6 +3,7 @@ import time
 from heapq import heapify, heappop
 from pathlib import Path
 from time import strptime, mktime
+from zipfile import ZipFile
 
 from atproto import Client
 
@@ -16,23 +17,22 @@ def create_post(timestamp):
     queue = C.queue_dir()
     done = C.done_dir()
 
-    text_file = f'{timestamp}.txt'
-    images = [f.name for f in queue.glob(f'{timestamp}*') if f.name != text_file]
+    zip_name = f'{timestamp}.zip'
 
     # Move post data to `active` to avoid race conditions if the service is
     # started twice
     with lock():
-        (queue / text_file).rename(active / text_file)
-        for img in images:
-            (queue / img).rename(active / img)
+        (queue / zip_name).rename(active / zip_name)
 
-    with open(active / text_file) as f:
-        text = f.read().strip()
+    z = ZipFile(active / zip_name, 'r')
 
     blobs = []
-    for img in images:
-        with open(active / img, 'rb') as f:
-            blobs.append(f.read())
+    for fname in z.namelist():
+        blob = z.read(fname)
+        if fname == 'contents':
+            text = str(blob, encoding='utf-8')
+        else:
+            blobs.append(blob)
 
     client = Client()
     client.login(*get_credentials())
@@ -45,9 +45,7 @@ def create_post(timestamp):
 
     # Finally move posted text and images into `done`
     with lock():
-        (active / text_file).rename(done / text_file)
-        for img in images:
-            (active / img).rename(done / img)
+        (active / zip_name).rename(done / zip_name)
 
 
 def send_due_posts(posts):
@@ -65,7 +63,6 @@ def send_due_posts(posts):
             print(f'Posting {timestamp}')
             create_post(timestamp)
         else:
-            print(f'Next post due at {timestamp}')
             break
 
 
@@ -73,7 +70,7 @@ def main():
     queue = C.queue_dir()
 
     while True:
-        posts = list(queue.glob('*.txt'))
+        posts = list(queue.glob('*.zip'))
         heapify(posts)
 
         send_due_posts(posts)
