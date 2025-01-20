@@ -53,3 +53,55 @@ def post(opts):
 
     with lock():
         (inbox / zip_name).rename(queue / zip_name)
+
+
+def list_spooldir(spool, verbose=False):
+    print(f'{spool}:')
+    print('=' * 72)
+
+    for entry in spool.iterdir():
+        print(entry.stem)
+
+        if not verbose:
+            continue
+
+        with ZipFile(entry, 'r') as z:
+            for info in z.infolist():
+                print(f'    {info.file_size:10}  {info.filename:32s}')
+
+
+def ls(opts):
+    if opts.spool in ['i', 'inbox', 'all']:
+        list_spooldir(C.inbox_dir(), opts.verbose)
+
+    if opts.spool in ['q', 'queue', 'all']:
+        list_spooldir(C.queue_dir(), opts.verbose)
+
+    if opts.spool in ['a', 'active', 'all']:
+        list_spooldir(C.active_dir(), opts.verbose)
+
+    if opts.spool in ['d', 'done', 'all']:
+        list_spooldir(C.done_dir(), opts.verbose)
+
+
+def rm_jobs(spool, jobs, verbose=False):
+    for entry in jobs:
+        fname = f'{entry}.zip'
+
+        if not (spool / fname).exists():
+            print(f'WARNING: {entry} not found in {spool.name}')
+        else:
+            (spool / fname).unlink()
+            if verbose:
+                print(f'{spool.name}/{fname} deleted')
+
+
+def rm(opts):
+    if opts.spool in ['i', 'inbox']:
+        rm_jobs(C.inbox_dir(), opts.jobs, opts.verbose)
+    elif opts.spool in ['q', 'queue']:
+        rm_jobs(C.queue_dir(), opts.jobs, opts.verbose)
+    elif opts.spool in ['a', 'active']:
+        rm_jobs(C.active_dir(), opts.jobs, opts.verbose)
+    elif opts.spool in ['d', 'done']:
+        rm_jobs(C.done_dir(), opts.jobs, opts.verbose)
