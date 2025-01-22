@@ -9,7 +9,8 @@ from atproto import Client
 
 import bskycli.config as C
 from bskycli.lock import lock
-from bskycli.auth import get_credentials
+from bskycli.auth import login
+
 
 
 def create_post(timestamp):
@@ -35,7 +36,7 @@ def create_post(timestamp):
             blobs.append(blob)
 
     client = Client()
-    client.login(*get_credentials())
+    login(client)
 
     if len(blobs) == 1:
         client.send_image(text, blobs[0], '')
