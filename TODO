@@ -1,0 +1,11 @@
+# TODO
+
+_In no specific order_
+
+* catch keyboard error
+* deal with bluesky exceptions
+    * Properly print result struct
+    * ESPECIALLY!  Move tried posts back into queue!
+* Debugging option for more verbosity
+* perhaps logging?  Yet systemd expects status from stdout...
+* Multiuser - requirement for running as a service
