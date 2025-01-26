@@ -16,8 +16,6 @@ def main():
     cmdline_help = subparsers.add_parser('help', help='Usage')
     cmdline_help.set_defaults(func=help)
 
-    cmdline_add = subparsers.add_parser('add', help='Add a post to the queue')
-
     cmdline_post = subparsers.add_parser('post', help='Create a post')
     cmdline_post.add_argument('-t', '--at', type=str, default=now, help='Earliest time to post.  Format is YYYY-MM-DD-HH:MM[:SS].  Default is now.')
     cmdline_post.add_argument('textfile', type=Path, help='File containing the post text.  Use "-" for stdin.')
