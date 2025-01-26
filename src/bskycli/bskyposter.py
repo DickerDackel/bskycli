@@ -1,3 +1,4 @@
+import re
 import time
 
 from heapq import heapify, heappop
@@ -5,12 +6,31 @@ from pathlib import Path
 from time import strptime, mktime
 from zipfile import ZipFile
 
-from atproto import Client
+from atproto import Client, client_utils
 
 import bskycli.config as C
 from bskycli.lock import lock
 from bskycli.auth import login
 
+
+RX_TAG = re.compile(r'#\w+')
+
+def text_to_post(text):
+    tb = client_utils.TextBuilder()
+    tags = RX_TAG.finditer(text)
+
+    start = 0
+    if tags is not None:
+        for tag in tags:
+            m_start, m_end = tag.span()
+
+            tb.text(text[start:m_start])
+            tb.tag(text[m_start:m_end], text[m_start + 1:m_end])
+            start = m_end
+
+    tb.text(text[start:])
+
+    return tb
 
 
 def create_post(timestamp):
@@ -35,16 +55,17 @@ def create_post(timestamp):
         else:
             blobs.append(blob)
 
+    post = text_to_post(text)
     client = Client()
     login(client)
 
     if len(blobs) == 1:
-        client.send_image(text, blobs[0], '')
+        client.send_image(post, blobs[0], '')
     else:
         alts = ['' for _ in blobs]
-        client.send_images(text, blobs, alts)
+        client.send_images(post, blobs, alts)
 
-    # Finally move posted text and images into `done`
+    # Finally move posted zip into `done`
     with lock():
         (active / zip_name).rename(done / zip_name)
 
