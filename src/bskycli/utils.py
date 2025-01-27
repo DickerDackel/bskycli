@@ -8,8 +8,9 @@ RX_LINK = re.compile(r'https?://[\w\-_#%&;./]+')
 
 def find_facets(rx, text):
     res = []
-    for item in rx.finditer(text):
-        res.append((item.start(), item.end(), item.group()))
+    text_bytes = text.encode('UTF-8')
+    for item in rx.finditer(text_bytes):
+        res.append((item.start(), item.end(), item.group().decode('UTF-8')))
 
     return res
 
