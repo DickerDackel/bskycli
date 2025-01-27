@@ -1,4 +1,3 @@
-import re
 import time
 
 from heapq import heapify, heappop
@@ -6,55 +5,12 @@ from pathlib import Path
 from time import strptime, mktime
 from zipfile import ZipFile
 
-from atproto import Client, IdResolver, models
+from atproto import Client
 
 import bskycli.config as C
 from bskycli.lock import lock
 from bskycli.auth import login
-
-RX_TAG = re.compile(r'#\w+')
-RX_MENTION = re.compile(r'@([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?')
-RX_LINK = re.compile(r'https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*[-a-zA-Z0-9@%_\+~#//=])?')
-
-def find_facets(rx, text):
-    res = []
-    for item in rx.finditer(text):
-        res.append((item.start(), item.end(), item.group()))
-
-    return res
-
-def pull_out_facets(text):
-    facets = []
-    for facet in find_facets(RX_TAG, text):
-        facets.append(
-            models.AppBskyRichtextFacet.Main(
-                features=[models.AppBskyRichtextFacet.Tag(tag=facet[2][1:])],
-                index=models.AppBskyRichtextFacet.ByteSlice(byte_start=facet[0], byte_end=facet[1]),
-            )
-        )
-
-    resolver = IdResolver()
-    for facet in find_facets(RX_MENTION, text):
-        did = resolver.handle.resolve(facet[2][1:])
-        if did:
-            facets.append(
-                models.AppBskyRichtextFacet.Main(
-                    features=[models.AppBskyRichtextFacet.Mention(did=did)],
-                    index=models.AppBskyRichtextFacet.ByteSlice(byte_start=facet[0], byte_end=facet[1]),
-                )
-            )
-        else:
-            print(f'handle {facet[2]} not found')
-
-    for facet in find_facets(RX_LINK, text):
-        facets.append(
-            models.AppBskyRichtextFacet.Main(
-                features=[models.AppBskyRichtextFacet.Link(uri=facet[2])],
-                index=models.AppBskyRichtextFacet.ByteSlice(byte_start=facet[0], byte_end=facet[1]),
-            )
-        )
-
-    return facets
+from bskycli.utils import pull_out_facets
 
 
 def create_post(timestamp):
