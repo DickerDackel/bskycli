@@ -2,7 +2,7 @@
 
 _In no specific order_
 
-* catch keyboard error
+* ~catch keyboard error~
 * deal with bluesky exceptions
     * Properly print result struct
     * ESPECIALLY!  Move tried posts back into queue!
