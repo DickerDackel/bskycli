@@ -6,31 +6,55 @@ from pathlib import Path
 from time import strptime, mktime
 from zipfile import ZipFile
 
-from atproto import Client, client_utils
+from atproto import Client, IdResolver, models
 
 import bskycli.config as C
 from bskycli.lock import lock
 from bskycli.auth import login
 
-
 RX_TAG = re.compile(r'#\w+')
+RX_MENTION = re.compile(r'@([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?')
+RX_LINK = re.compile(r'https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*[-a-zA-Z0-9@%_\+~#//=])?')
 
-def text_to_post(text):
-    tb = client_utils.TextBuilder()
-    tags = RX_TAG.finditer(text)
+def find_facets(rx, text):
+    res = []
+    for item in rx.finditer(text):
+        res.append((item.start(), item.end(), item.group()))
 
-    start = 0
-    if tags is not None:
-        for tag in tags:
-            m_start, m_end = tag.span()
+    return res
 
-            tb.text(text[start:m_start])
-            tb.tag(text[m_start:m_end], text[m_start + 1:m_end])
-            start = m_end
+def pull_out_facets(text):
+    facets = []
+    for facet in find_facets(RX_TAG, text):
+        facets.append(
+            models.AppBskyRichtextFacet.Main(
+                features=[models.AppBskyRichtextFacet.Tag(tag=facet[2][1:])],
+                index=models.AppBskyRichtextFacet.ByteSlice(byte_start=facet[0], byte_end=facet[1]),
+            )
+        )
 
-    tb.text(text[start:])
+    resolver = IdResolver()
+    for facet in find_facets(RX_MENTION, text):
+        did = resolver.handle.resolve(facet[2][1:])
+        if did:
+            facets.append(
+                models.AppBskyRichtextFacet.Main(
+                    features=[models.AppBskyRichtextFacet.Mention(did=did)],
+                    index=models.AppBskyRichtextFacet.ByteSlice(byte_start=facet[0], byte_end=facet[1]),
+                )
+            )
+        else:
+            print(f'handle {facet[2]} not found')
 
-    return tb
+    for facet in find_facets(RX_LINK, text):
+        facets.append(
+            models.AppBskyRichtextFacet.Main(
+                features=[models.AppBskyRichtextFacet.Link(uri=facet[2])],
+                index=models.AppBskyRichtextFacet.ByteSlice(byte_start=facet[0], byte_end=facet[1]),
+            )
+        )
+
+    return facets
 
 
 def create_post(timestamp):
@@ -55,15 +79,18 @@ def create_post(timestamp):
         else:
             blobs.append(blob)
 
-    post = text_to_post(text)
+    facets = pull_out_facets(text)
     client = Client()
     login(client)
 
-    if len(blobs) == 1:
-        client.send_image(post, blobs[0], '')
+    l = len(blobs)
+    if l == 0:
+        client.send_post(text=text, facets=facets)
+    elif l == 1:
+        client.send_image(text=text, image=blobs[0], image_alt='', facets=facets)
     else:
         alts = ['' for _ in blobs]
-        client.send_images(post, blobs, alts)
+        client.send_images(text=text, images=blobs, image_alts=alts, facets=facets)
 
     # Finally move posted zip into `done`
     with lock():
@@ -89,15 +116,20 @@ def send_due_posts(posts):
 
 
 def main():
-    queue = C.queue_dir()
+    try:
+        print('bskyposter started')
+        queue = C.queue_dir()
 
-    while True:
-        posts = list(queue.glob('*.zip'))
-        heapify(posts)
+        while True:
+            posts = list(queue.glob('*.zip'))
+            heapify(posts)
 
-        send_due_posts(posts)
+            send_due_posts(posts)
 
-        time.sleep(1)
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print()
+        print('bskyposter exiting')
 
 
 if __name__ == "__main__":
